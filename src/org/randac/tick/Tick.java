@@ -1,4 +1,4 @@
-package org.rac.tick;
+package org.randac.tick;
 
 /**
  * Created by smokey on 7/18/2017.
