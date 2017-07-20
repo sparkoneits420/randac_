@@ -17,7 +17,7 @@ public class TickQueue extends ArrayList<Tick> implements Runnable {
                     tick.execute();
                     tick.last = cur;
                     try {
-                        Thread.sleep(1);
+                        Thread.sleep(5);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

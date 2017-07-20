@@ -13,6 +13,8 @@ import org.randac.tick.TickQueue;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -53,7 +55,7 @@ public class Application extends JFrame
     private void initComponents() {
         settings = new MainPanel();
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(730, 178));
+        setPreferredSize(new Dimension(450, 178));
         setAlwaysOnTop(true);
         try {
             GlobalScreen.registerNativeHook();
@@ -83,7 +85,7 @@ public class Application extends JFrame
         int key = e.getKeyCode();
 
         switch (key) {
-            case NativeKeyEvent.VC_S:
+            case NativeKeyEvent.VC_F6:
 
                 if(bot != null) {
                     if (!bot.on)
@@ -93,7 +95,7 @@ public class Application extends JFrame
                 bot = new MouseBot();
                 bot.start(); 
                 break;
-            case NativeKeyEvent.VC_D:
+            case NativeKeyEvent.VC_F2:
                 if(bot == null)
                     return;
                 bot.stop();
@@ -116,18 +118,16 @@ public class Application extends JFrame
         private ExecutorService executor;
         private Robot robot;
         boolean on = false;
+
         public void start() {
             if(on)
                 return;
             on = true;
             executor = Executors.newSingleThreadExecutor();
             tq = new TickQueue();
+            createPointMatrix(MouseInfo.getPointerInfo().getLocation());
             try {
                 robot = new Robot();
-                if(pointMatrix == null && settings.randomize.isSelected()) {
-                    start = getMousePosition();
-                    pointMatrix = createPointMatrix(start);
-                }
             } catch (AWTException e) {
                 e.printStackTrace();
             }
@@ -141,26 +141,79 @@ public class Application extends JFrame
             executor.shutdown();
             //System.exit(0);
         }
-        private Point[] pointMatrix = new Point[9];
+        private ArrayList<Point> pointMatrix = new ArrayList<>(200);
+        int matrixIndex = 0;
+        long interval1, last1;
+        boolean breakNow;
+
         @Override
         public void execute() {
-            System.out.println("wut1");
+            //System.out.println("wut1");
+
             if(on)
                 if(!settings.randomize.isSelected()) {
+                    long cur = System.currentTimeMillis();
+                    if(cur - last1 >= interval1) {//execute without additional event
+                        breakNow = true;
+                        while(breakNow) {
+                            try {
+                                System.out.println("taking  break...");
+                                long duration = (long) (3000 + 1500 * Math.random());
+                                Thread.sleep(duration);
+                                System.out.println("done... breaked for " + (double)duration / 1000+ " seconds");
+
+                                last1 = cur;
+                                //stop for 3 seconds or more
+                                breakNow = false;
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        interval1 = (long) (100000 + (125000 * Math.random()));
+
+                    }
+                    interval = (long) ((125 * Math.random()) + 125);
                     mouseClick();
                 } else {
-                    interval = (long) ((250 * Math.random()) + 250);
-                    mouseClick(pointMatrix[(int)(9 * Math.random())]);
+                    try {
+                        long cur = System.currentTimeMillis();
+                        if(cur - last1 >= interval1 && (settings.breaks.isSelected())) {//execute without additional event
+                            breakNow = true;
+                            while(breakNow) {
+                                try {
+                                    //System.out.println("taking  break...");
+                                    long duration = (long) (3000 + 1500 * Math.random());
+                                    Thread.sleep(duration);
+                                    //System.out.println("done... breaked for " + (double)duration / 1000+ " seconds");
+
+                                    last1 = cur;
+                                    //stop for 3 seconds or more
+                                    breakNow = false;
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            interval1 = (long) (10000 + (15000 * Math.random()));
+
+                        }
+                        interval = (long) ((125 * Math.random()) + 125);
+                        if(matrixIndex < pointMatrix.size()) {
+                            mouseClick(pointMatrix.get(matrixIndex++));
+                        } else {
+                            matrixIndex = 0;
+                            mouseClick(pointMatrix.get(matrixIndex));
+                        }
+                    } catch (NullPointerException ex) {
+                        ex.printStackTrace();
+                    }
                 }
 
         }
 
-        public void mouseClick(Point p) {
-            System.out.println("trying to move");
-            robot.mouseMove((int)p.getX(), (int)p.getY());
+        public void mouseClick(Point p) throws NullPointerException {
+            int x = (int)p.getX(), y = (int)p.getY();
+            robot.mouseMove(x, y);
             mouseClick();
-            //back to center so we dont get thrown off or move more than 1 pixel to a time
-            robot.mouseMove(pointMatrix[CENTER].x, pointMatrix[CENTER].y);
         }
 
         public void mouseClick() {
@@ -168,21 +221,29 @@ public class Application extends JFrame
             robot.mouseRelease(InputEvent.BUTTON1_MASK);
         }
 
-        public Point[] createPointMatrix(Point center) {
-            Point[] pointMatrix = new Point[9];
-            pointMatrix[WEST] = new Point(center.x - 1, center.y);
-            pointMatrix[NORTHWEST] = new Point(center.x - 1, center.y + 1);
-            pointMatrix[NORTH] = new Point(center.x, center.y + 1);
-            pointMatrix[NORTHEAST] = new Point(center.x + 1, center.y + 1);
-            pointMatrix[EAST] = new Point(center.x + 1, center.y);
-            pointMatrix[SOUTHEAST] = new Point(center.x - 1, center.y + 1);
-            pointMatrix[SOUTH] = new Point(center.x, center.y - 1);
-            pointMatrix[SOUTHWEST] = new Point(center.x - 1, center.y - 1);
-            pointMatrix[CENTER] = new Point(center.x, center.y);
-            return pointMatrix;
+        public void createPointMatrix(Point center) {
+            for(int variable = 0; variable < 4; variable++) {
+
+                pointMatrix.add(WEST * variable, new Point(center.x - (int) (Math.random() * variable + 1), center.y));
+                pointMatrix.add(NORTHWEST * variable, new Point(center.x - (int) (Math.random() * variable + 1),
+                        center.y + (int) (Math.random() * variable + 1)));
+                pointMatrix.add(NORTH * variable, new Point(center.x, center.y + (int) (Math.random() * variable + 1)));
+                pointMatrix.add(NORTHEAST * variable, new Point(center.x + (int) (Math.random() * variable + 1),
+                        center.y + (int) (Math.random() * variable + 1)));
+                pointMatrix.add(EAST * variable, new Point(center.x + (int) (Math.random() * variable + 1), center.y));
+                pointMatrix.add(SOUTHEAST * variable, new Point(center.x - (int) (Math.random() * variable + 1),
+                        center.y + (int) (Math.random() * variable + 1)));
+                pointMatrix.add(SOUTH * variable, new Point(center.x, center.y - (int) (Math.random() * variable + 1)));
+                pointMatrix.add(SOUTHWEST * variable, new Point(center.x - (int) (Math.random() * variable + 1),
+                        center.y - (int) (Math.random() * variable + 1)));
+                pointMatrix.add(CENTER * variable, new Point(center.x, center.y));
+            }
+            for(Point p : pointMatrix) {
+                //System.out.println("x: " + p.getX() + ", y: " + p.getY());
+            }
         }
     }
- 
+
     public static final byte  WEST = 0, NORTHWEST = 1, NORTH = 2, NORTHEAST = 3,
             CENTER = 4, EAST = 5, SOUTHEAST = 6, SOUTH = 7, SOUTHWEST = 8;
 }
