@@ -4,8 +4,6 @@ import org.jnativehook.GlobalScreen;
 import org.jnativehook.NativeHookException;
 import org.jnativehook.keyboard.NativeKeyEvent;
 import org.jnativehook.keyboard.NativeKeyListener;
-import org.jnativehook.mouse.NativeMouseEvent;
-import org.jnativehook.mouse.NativeMouseMotionListener;
 import org.jvnet.substance.skin.SubstanceBusinessBlackSteelLookAndFeel;
 import org.randac.tick.Tick;
 import org.randac.tick.TickQueue;
@@ -14,7 +12,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -26,6 +23,8 @@ import java.util.logging.Logger;
  *      Date: 7/16/2017
  *      Description: Randomized autoclicker that utilizes hotkeys and random movements and takes
  *      short afk breaks using random times. Built for runescape.
+ *      @implNote excuse my conventions, it was written in a hurry so its horribly cluttered and
+ *      looks like shit
  */
 public class Application extends JFrame
         implements NativeKeyListener {
@@ -34,10 +33,13 @@ public class Application extends JFrame
     private static boolean running = true;
     private MouseBot bot;
     private MainPanel settings;
-    private Point start; 
+    private ArrayList<Point> pointMatrix = new ArrayList<>();
+    int matrixIndex = 0;
+    long interval1, last1;
+    boolean breakNow;
 
     public Application() {
-        super("RANDAC");
+        super("RANDAC - 1.0");
         initComponents();
     }
 
@@ -45,25 +47,25 @@ public class Application extends JFrame
         EventQueue.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(new SubstanceBusinessBlackSteelLookAndFeel());
+                setDefaultLookAndFeelDecorated(false);
             } catch (UnsupportedLookAndFeelException e) {
                 e.printStackTrace();
             }
-            new Application().setVisible(true);
+            Application app = new Application();
+            SwingUtilities.updateComponentTreeUI(app);
+            app.setVisible(true);
         });
     }
 
     private void initComponents() {
         settings = new MainPanel();
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setPreferredSize(new Dimension(450, 178));
+        setPreferredSize(new Dimension(550, 200));
         setAlwaysOnTop(true);
         try {
             GlobalScreen.registerNativeHook();
-        }
-        catch (NativeHookException ex) {
-            System.err.println("There was a problem registering the native hook.");
-            System.err.println(ex.getMessage());
-
+        } catch (NativeHookException e) {
+            e.printStackTrace();
             System.exit(1);
         }
         LogManager.getLogManager().reset();
@@ -73,11 +75,6 @@ public class Application extends JFrame
         GlobalScreen.addNativeKeyListener(this);
         this.add(settings, BorderLayout.CENTER);
         pack();
-    }
-
-    @Override
-    public void nativeKeyTyped(NativeKeyEvent e) {
-
     }
 
     @Override
@@ -108,19 +105,24 @@ public class Application extends JFrame
 //unused
     }
 
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+//unused
+    }
+
+
     public static boolean isRunning() {
         return running;
     }
 
     private class MouseBot extends Tick {
         private TickQueue tq;
-        private Application app;
         private ExecutorService executor;
         private Robot robot;
         boolean on = false;
 
         public void start() {
-            if(on)
+            if (on)
                 return;
             on = true;
             executor = Executors.newSingleThreadExecutor();
@@ -133,85 +135,63 @@ public class Application extends JFrame
             }
             executor.submit(tq);
             tq.add(this);
-            interval = 500;
+            interval = getInterval();
+        }
+
+        public long getInterval() {
+            if (settings.interval.getText().isEmpty()) {
+                return (long) (((settings.randomize.isSelected() ? 125 : 50) * Math.random()) + (settings.randomize.isSelected() ? 125 : 250));
+            }
+            return Long.parseLong(settings.interval.getText());
         }
 
         public void stop() {
             on = false;
             executor.shutdown();
-            //System.exit(0);
         }
-        private ArrayList<Point> pointMatrix = new ArrayList<>(200);
-        int matrixIndex = 0;
-        long interval1, last1;
-        boolean breakNow;
 
         @Override
         public void execute() {
-            //System.out.println("wut1");
-
-            if(on)
-                if(!settings.randomize.isSelected()) {
-                    long cur = System.currentTimeMillis();
-                    if(cur - last1 >= interval1) {//execute without additional event
-                        breakNow = true;
-                        while(breakNow) {
-                            try {
-                                System.out.println("taking  break...");
-                                long duration = (long) (3000 + 1500 * Math.random());
-                                Thread.sleep(duration);
-                                System.out.println("done... breaked for " + (double)duration / 1000+ " seconds");
-
-                                last1 = cur;
-                                //stop for 3 seconds or more
-                                breakNow = false;
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
+            try {
+                long cur = System.currentTimeMillis();
+                if (cur - last1 >= interval1 && (settings.breaks.isSelected())) {
+                    breakNow = true;
+                    while (breakNow) {
+                        try {
+                            long duration = (long) (3000 + 1500 * Math.random());
+                            Thread.sleep(duration);
+                            last1 = cur;
+                            breakNow = false;
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                        interval1 = (long) (100000 + (125000 * Math.random()));
-
                     }
-                    interval = (long) ((125 * Math.random()) + 125);
-                    mouseClick();
-                } else {
-                    try {
-                        long cur = System.currentTimeMillis();
-                        if(cur - last1 >= interval1 && (settings.breaks.isSelected())) {//execute without additional event
-                            breakNow = true;
-                            while(breakNow) {
-                                try {
-                                    //System.out.println("taking  break...");
-                                    long duration = (long) (3000 + 1500 * Math.random());
-                                    Thread.sleep(duration);
-                                    //System.out.println("done... breaked for " + (double)duration / 1000+ " seconds");
+                    interval1 = (long) (10000 + (15000 * Math.random()));
 
-                                    last1 = cur;
-                                    //stop for 3 seconds or more
-                                    breakNow = false;
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                            interval1 = (long) (10000 + (15000 * Math.random()));
-
-                        }
-                        interval = (long) ((125 * Math.random()) + 125);
-                        if(matrixIndex < pointMatrix.size()) {
-                            mouseClick(pointMatrix.get(matrixIndex++));
-                        } else {
-                            matrixIndex = 0;
-                            mouseClick(pointMatrix.get(matrixIndex));
-                        }
-                    } catch (NullPointerException ex) {
-                        ex.printStackTrace();
-                    }
                 }
-
+                interval = getInterval();
+                if (!on) {
+                    if (matrixIndex < pointMatrix.size()) {
+                        mouseClick(pointMatrix.get(matrixIndex++));
+                    } else {
+                        matrixIndex = 0;
+                        mouseClick(pointMatrix.get(matrixIndex));
+                    }
+                } else
+                    mouseClick();
+            } catch (NullPointerException ex) {
+                ex.printStackTrace();
+            }
         }
 
         public void mouseClick(Point p) throws NullPointerException {
-            int x = (int)p.getX(), y = (int)p.getY();
+            int x = (int) p.getX(), y = (int) p.getY();
+            Point loc = MouseInfo.getPointerInfo().getLocation();
+            if (Math.abs(loc.getX() - x) >= 4 && Math.abs(loc.getY() - y) >= 4) {
+                Point p2 = pointMatrix.get(CENTER);
+                robot.mouseMove((int) p2.getX(), (int) p2.getY());
+
+            }
             robot.mouseMove(x, y);
             mouseClick();
         }
@@ -222,8 +202,7 @@ public class Application extends JFrame
         }
 
         public void createPointMatrix(Point center) {
-            for(int variable = 0; variable < 4; variable++) {
-
+            for (int variable = 0; variable < 3; variable++) {
                 pointMatrix.add(WEST * variable, new Point(center.x - (int) (Math.random() * variable + 1), center.y));
                 pointMatrix.add(NORTHWEST * variable, new Point(center.x - (int) (Math.random() * variable + 1),
                         center.y + (int) (Math.random() * variable + 1)));
@@ -237,9 +216,6 @@ public class Application extends JFrame
                 pointMatrix.add(SOUTHWEST * variable, new Point(center.x - (int) (Math.random() * variable + 1),
                         center.y - (int) (Math.random() * variable + 1)));
                 pointMatrix.add(CENTER * variable, new Point(center.x, center.y));
-            }
-            for(Point p : pointMatrix) {
-                //System.out.println("x: " + p.getX() + ", y: " + p.getY());
             }
         }
     }

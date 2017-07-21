@@ -13,11 +13,11 @@ public class TickQueue extends ArrayList<Tick> implements Runnable {
         while(Application.isRunning()) {
             long cur = System.currentTimeMillis();
             for(Tick tick : this) {
-                if(cur - tick.interval >= tick.last) {
+                if(cur - tick.last >= tick.interval) {
                     tick.execute();
                     tick.last = cur;
                     try {
-                        Thread.sleep(5);
+                        Thread.sleep(50);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }

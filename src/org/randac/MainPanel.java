@@ -16,7 +16,7 @@ public class MainPanel extends JPanel {
     private JPanel panel1;
     public JCheckBox randomize;
     public JCheckBox breaks;
-
+    public JTextField interval;
 
     public MainPanel() {
         super();
@@ -26,18 +26,24 @@ public class MainPanel extends JPanel {
     private void initComponents() {
 
         randomize = new JCheckBox("Randomize movements and interval?");
-        randomize.setFocusable(false);
         breaks = new JCheckBox("Take breaks?");
-        breaks.setFocusable(false);
-        label1 = new JLabel("Live settings, 'S' on your keyboard to start 'D' to stop");
-        label2 = new JLabel("The default interval is 250ms + 250 * random ");
+        interval = new JTextField("", 12);
+        label1 = new JLabel("Live settings, 'F6' on your keyboard to start, and 'F2' to stop.");
+        label2 = new JLabel("The default interval is 125 + (0 - 125) (ms)(random) or 250ms(non-random)");
         panel1 = new JPanel();
-        panel1.setBorder(new TitledBorder(new EtchedBorder(), "Settings..."));
-        panel1.add(randomize);
-        panel1.add(breaks);
+        panel1.add(new JLabel("Interval in milliseconds:"), "North");
+        panel1.add(interval, "North");
+        panel1.add(new JSeparator());
+        JPanel panel2 = new JPanel();
+        panel2.add(randomize, "South");
+        panel2.add(breaks,"South");
         add(label1, "North");
-
-        add(panel1, "Center");
+        add(new JSeparator());
         add(label2, "South");
+        add(panel1, "Center");
+        add(new JSeparator(), "Center");
+        add(panel2, "South");
+
+
     }
 }
