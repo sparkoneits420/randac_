@@ -29,14 +29,20 @@ import java.util.logging.Logger;
 public class Application extends JFrame
         implements NativeKeyListener {
 
+    public static final byte  WEST = 0, NORTHWEST = 1, NORTH = 2, NORTHEAST = 3,
+            CENTER = 4, EAST = 5, SOUTHEAST = 6, SOUTH = 7, SOUTHWEST = 8;
 
     private static boolean running = true;
     private MouseBot bot;
     private MainPanel settings;
     private ArrayList<Point> pointMatrix = new ArrayList<>();
-    int matrixIndex = 0;
-    long interval1, last1;
-    boolean breakNow;
+    private int matrixIndex = 0;
+    private long interval1, last1;
+    private boolean breakNow;
+    private TickQueue tq;
+    private ExecutorService executor;
+    private Robot robot;
+    private boolean on = false;
 
     public Application() {
         super("RANDAC - 1.0");
@@ -47,7 +53,7 @@ public class Application extends JFrame
         EventQueue.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(new SubstanceBusinessBlackSteelLookAndFeel());
-                setDefaultLookAndFeelDecorated(false);
+                setDefaultLookAndFeelDecorated(true);
             } catch (UnsupportedLookAndFeelException e) {
                 e.printStackTrace();
             }
@@ -80,12 +86,10 @@ public class Application extends JFrame
     @Override
     public void nativeKeyPressed(NativeKeyEvent e) {
         int key = e.getKeyCode();
-
         switch (key) {
             case NativeKeyEvent.VC_F6:
-
                 if(bot != null) {
-                    if (!bot.on)
+                    if (!on)
                         bot.start();
                     break;
                 }
@@ -95,7 +99,7 @@ public class Application extends JFrame
             case NativeKeyEvent.VC_F2:
                 if(bot == null)
                     return;
-                bot.stop();
+                on = false;
                 break;
         }
     }
@@ -116,10 +120,6 @@ public class Application extends JFrame
     }
 
     private class MouseBot extends Tick {
-        private TickQueue tq;
-        private ExecutorService executor;
-        private Robot robot;
-        boolean on = false;
 
         public void start() {
             if (on)
@@ -132,59 +132,47 @@ public class Application extends JFrame
                 robot = new Robot();
             } catch (AWTException e) {
                 e.printStackTrace();
+                System.exit(2);
             }
             executor.submit(tq);
             tq.add(this);
             interval = getInterval();
         }
 
-        public long getInterval() {
-            if (settings.interval.getText().isEmpty()) {
-                return (long) (((settings.randomize.isSelected() ? 125 : 50) * Math.random()) + (settings.randomize.isSelected() ? 125 : 250));
-            }
-            return Long.parseLong(settings.interval.getText());
-        }
-
-        public void stop() {
-            on = false;
-            executor.shutdown();
-        }
-
         @Override
         public void execute() {
-            try {
-                long cur = System.currentTimeMillis();
-                if (cur - last1 >= interval1 && (settings.breaks.isSelected())) {
-                    breakNow = true;
-                    while (breakNow) {
-                        try {
-                            long duration = (long) (3000 + 1500 * Math.random());
-                            Thread.sleep(duration);
-                            last1 = cur;
-                            breakNow = false;
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+            if(!on)
+                return;
+            long cur = System.currentTimeMillis();
+            if (cur - last1 >= interval1 && (settings.breaks.isSelected())) {
+                breakNow = true;
+                while (breakNow) {
+                    try {
+                        long duration = (long) (3000 + 1500 * Math.random());
+                        Thread.sleep(duration);
+                        last1 = cur;
+                        breakNow = false;
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        System.exit(3);
                     }
-                    interval1 = (long) (10000 + (15000 * Math.random()));
-
                 }
-                interval = getInterval();
-                if (!on) {
-                    if (matrixIndex < pointMatrix.size()) {
-                        mouseClick(pointMatrix.get(matrixIndex++));
-                    } else {
-                        matrixIndex = 0;
-                        mouseClick(pointMatrix.get(matrixIndex));
-                    }
-                } else
-                    mouseClick();
-            } catch (NullPointerException ex) {
-                ex.printStackTrace();
+                interval1 = (long) (10000 + (15000 * Math.random()));
+
             }
+            interval = getInterval();
+            if(settings.randomize.isSelected()) {
+                if (matrixIndex < pointMatrix.size()) {
+                    mouseClick(pointMatrix.get(matrixIndex++));
+                } else {
+                    matrixIndex = 0;
+                    mouseClick(pointMatrix.get(matrixIndex));
+                }
+            } else
+                mouseClick();
         }
 
-        public void mouseClick(Point p) throws NullPointerException {
+        public void mouseClick(Point p) {
             int x = (int) p.getX(), y = (int) p.getY();
             Point loc = MouseInfo.getPointerInfo().getLocation();
             if (Math.abs(loc.getX() - x) >= 4 && Math.abs(loc.getY() - y) >= 4) {
@@ -199,6 +187,13 @@ public class Application extends JFrame
         public void mouseClick() {
             robot.mousePress(InputEvent.BUTTON1_MASK);
             robot.mouseRelease(InputEvent.BUTTON1_MASK);
+        }
+
+        public long getInterval() {
+            if (settings.interval.getText().isEmpty()) {
+                return (long) (((settings.randomize.isSelected() ? 125 : 50) * Math.random()) + (settings.randomize.isSelected() ? 125 : 250));
+            }
+            return Long.parseLong(settings.interval.getText());
         }
 
         public void createPointMatrix(Point center) {
@@ -219,7 +214,4 @@ public class Application extends JFrame
             }
         }
     }
-
-    public static final byte  WEST = 0, NORTHWEST = 1, NORTH = 2, NORTHEAST = 3,
-            CENTER = 4, EAST = 5, SOUTHEAST = 6, SOUTH = 7, SOUTHWEST = 8;
 }
