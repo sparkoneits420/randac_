@@ -148,7 +148,7 @@ public class Application extends JFrame
                 breakNow = true;
                 while (breakNow) {
                     try {
-                        long duration = (long) (3000 + 1500 * Math.random());
+                        long duration = (long) (3000 + 30000 * Math.random());
                         Thread.sleep(duration);
                         last1 = cur;
                         breakNow = false;
@@ -157,7 +157,7 @@ public class Application extends JFrame
                         System.exit(3);
                     }
                 }
-                interval1 = (long) (10000 + (15000 * Math.random()));
+                interval1 = (long) (1500000 + (1500000 * Math.random()));
 
             }
             interval = getInterval();
