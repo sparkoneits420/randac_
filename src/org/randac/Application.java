@@ -128,7 +128,7 @@ public class Application extends JFrame
                 tq = new TickQueue();
             if(pointMatrix == null)
                 start = MouseInfo.getPointerInfo().getLocation();
-                pointMatrix = createPointMatrix(start, 4);
+                pointMatrix = createPointMatrix(start, 2);
             try {
                 robot = new Robot();
             } catch (AWTException e) {
@@ -172,12 +172,7 @@ public class Application extends JFrame
             }
             interval = getInterval();
             if(settings.randomize.isSelected()) {
-                if (matrixIndex < pointMatrix.size()) {
-                    mouseClick(pointMatrix.get(matrixIndex++));
-                } else {
-                    matrixIndex = 0;
-                    mouseClick(pointMatrix.get(matrixIndex));
-                }
+                mouseClick(getNextPoint());
             } else
                 mouseClick();
         }
@@ -203,6 +198,22 @@ public class Application extends JFrame
                 return (long) (((settings.randomize.isSelected() ? 125 : 50) * Math.random()) + (settings.randomize.isSelected() ? 125 : 250));
             }
             return Long.parseLong(settings.interval.getText());
+        }
+
+        private Point last;
+
+        public Point getNextPoint() {
+            //for(;;) {
+                Point p = pointMatrix.get((int) (Math.random() * pointMatrix.size()));
+                if(matrixIndex >= pointMatrix.size()) {
+                    matrixIndex = 0;
+                }
+               // System.out.println(pointMatrix.size());
+                //if (getDistance(last, p) <= 1) {
+                 //   last = p;
+                    return p;
+                //}
+            //}
         }
 
         /*public void createPointMatrix(Point center, int radius) {
@@ -234,6 +245,7 @@ public class Application extends JFrame
         public ArrayList<Point> createPointMatrix(Point center, int radius) {
             ArrayList<Point> points = new ArrayList<>();
             double h = center.getX(), k = center.getY();
+            last = center;
             //System.out.println("lol");
             for(int r = 0; r < radius; r++) {
                 for(int t = 0; t < 360; t++) {
